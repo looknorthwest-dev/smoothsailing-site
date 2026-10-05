@@ -170,10 +170,11 @@ function dueRow(t) {
   return h("div", { class: `row cat-${t.category}` }, h("span", { class: "dot" }),
     h("div", { class: "grow" }, h("div", { class: "title" }, t.title),
       h("div", { class: "meta" }, `${CAT[t.category]}${t.subcategory ? " · " + t.subcategory : ""} · ${every(t)} · ~${fmtMin(t.est_minutes)}`)),
-    t.days_overdue ? h("span", { class: "tag warn" }, `${t.days_overdue}d overdue`) : null,
-    h("button", { class: "primary", onclick: done(false) }, "Done"),
-    h("button", { title: "Done, and it's a win", onclick: done(true) }, "★"),
-    t.deferrable ? h("button", { class: "ghost", onclick: (ev) => act(ev.currentTarget, async () => { await api("POST", `/api/tasks/${t.id}/push`, { days: 1 }); refresh(); }) }, "Later") : null);
+    h("div", { class: "acts" },
+      t.days_overdue ? h("span", { class: "tag warn" }, `${t.days_overdue}d overdue`) : null,
+      h("button", { class: "primary", onclick: done(false) }, "Done"),
+      h("button", { title: "Done, and it's a win", onclick: done(true) }, "★"),
+      t.deferrable ? h("button", { class: "ghost", onclick: (ev) => act(ev.currentTarget, async () => { await api("POST", `/api/tasks/${t.id}/push`, { days: 1 }); refresh(); }) }, "Later") : null));
 }
 
 function quickLog(d) {
@@ -214,12 +215,12 @@ function planView(p, date) {
     if (!bs.length) continue;
     out.push(h("div", { class: "when" }, when));
     for (const b of bs) out.push(h("div", { class: `row cat-${b.category}` }, h("span", { class: "dot" }),
-      h("div", { class: "grow" }, h("div", { class: "title" }, b.title), h("div", { class: "meta" }, b.why)), h("span", { class: "tag" }, fmtMin(b.minutes))));
+      h("div", { class: "grow" }, h("div", { class: "title" }, b.title), h("div", { class: "meta" }, `${fmtMin(b.minutes)} · ${b.why}`))));
   }
   if (p.push_back.length) {
     out.push(h("div", { class: "when" }, "Suggested to push back"));
     for (const x of p.push_back) out.push(h("div", { class: "row" }, h("div", { class: "grow" }, h("div", { class: "title" }, `Routine #${x.task_id} → ${dayName(x.to_date)}`), h("div", { class: "meta" }, x.reason)),
-      h("button", { onclick: (ev) => act(ev.currentTarget, async () => { await api("POST", `/api/tasks/${x.task_id}/push`, { to: x.to_date }); toast("Pushed"); ev.currentTarget.disabled = true; }) }, "Apply")));
+      h("div", { class: "acts" }, h("button", { onclick: (ev) => act(ev.currentTarget, async () => { await api("POST", `/api/tasks/${x.task_id}/push`, { to: x.to_date }); toast("Pushed"); ev.currentTarget.disabled = true; }) }, "Apply"))));
   }
   out.push(h("p", { class: "meta", style: "margin-top:12px" }, p.balance_note));
   return out;
@@ -227,8 +228,7 @@ function planView(p, date) {
 
 function foodView(f) {
   return [h("p", { class: "meta" }, f.theme), ...f.ideas.map((i) => h("div", { class: "row" }, h("div", { class: "grow" },
-    h("div", { class: "title" }, i.name), h("div", { class: "meta" }, i.why_today), h("div", {}, i.how)),
-    h("span", { class: "tag" }, `${i.prep_minutes}m`), i.batch_friendly ? h("span", { class: "tag good" }, "batch") : null)),
+    h("div", { class: "title" }, i.name), h("div", { class: "meta" }, `${i.prep_minutes}m${i.batch_friendly ? " · batch-friendly" : ""} · ${i.why_today}`), h("div", {}, i.how)))),
     f.shopping_note ? h("p", { class: "meta" }, "🛒 " + f.shopping_note) : null];
 }
 
@@ -243,8 +243,8 @@ async function routines() {
       const list = tasks.filter((t) => t.category === c);
       return h("div", { class: "card" }, h("h2", {}, CAT[c]), list.length ? list.map((t) => h("div", { class: `row cat-${c}`, style: t.active ? "" : "opacity:.5" }, h("span", { class: "dot" }),
         h("div", { class: "grow" }, h("div", { class: "title" }, t.title), h("div", { class: "meta" }, `${t.subcategory ? t.subcategory + " · " : ""}${every(t)} · ~${fmtMin(t.est_minutes)} · next ${t.next_due ? dayName(t.next_due) : "—"}${t.last_done ? " · last " + dayName(t.last_done) : ""}`)),
-        t.deferrable ? null : h("span", { class: "tag", title: "Never pushed back on major days" }, "fixed"),
-        h("button", { class: "ghost", onclick: () => taskDialog(t) }, "Edit"))) : h("div", { class: "empty" }, "Nothing here yet."));
+        h("div", { class: "acts side" }, t.deferrable ? null : h("span", { class: "tag", title: "Never pushed back on major days" }, "fixed"),
+          h("button", { class: "ghost", onclick: () => taskDialog(t) }, "Edit")))) : h("div", { class: "empty" }, "Nothing here yet."));
     }));
 }
 
@@ -282,9 +282,10 @@ function taskDialog(t = null) {
 function entryRow(e) {
   return h("div", { class: `row cat-${e.category}` }, h("span", { class: "dot" }),
     h("div", { class: "grow" }, h("div", { class: "title" }, e.title), h("div", { class: "meta" }, `${CAT[e.category]}${e.subcategory ? " · " + e.subcategory : ""}${e.minutes ? " · " + fmtMin(e.minutes) : ""}${e.notes ? " · " + e.notes : ""}`)),
-    h("button", { class: "star" + (e.accomplishment ? " on" : ""), title: "Toggle win", onclick: (ev) => act(ev.currentTarget, async () => { await api("PATCH", `/api/completions/${e.id}`, { accomplishment: !e.accomplishment }); refresh(); }) }, e.accomplishment ? "★" : "☆"),
-    h("button", { class: "ghost", title: "Edit entry", onclick: () => entryDialog(e) }, "Edit"),
-    h("button", { class: "ghost danger", title: "Delete entry", onclick: (ev) => { if (confirm("Delete this entry?")) act(ev.currentTarget, async () => { await api("DELETE", `/api/completions/${e.id}`); refresh(); }); } }, "✕"));
+    h("div", { class: "acts" },
+      h("button", { class: "star" + (e.accomplishment ? " on" : ""), title: "Toggle win", onclick: (ev) => act(ev.currentTarget, async () => { await api("PATCH", `/api/completions/${e.id}`, { accomplishment: !e.accomplishment }); refresh(); }) }, e.accomplishment ? "★" : "☆"),
+      h("button", { class: "ghost", title: "Edit entry", onclick: () => entryDialog(e) }, "Edit"),
+      h("button", { class: "ghost danger", title: "Delete entry", onclick: (ev) => { if (confirm("Delete this entry?")) act(ev.currentTarget, async () => { await api("DELETE", `/api/completions/${e.id}`); refresh(); }); } }, "✕")));
 }
 
 function entryDialog(e) {

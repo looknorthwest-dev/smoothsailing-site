@@ -58,6 +58,23 @@ label { display: block; font-size: .85rem; color: var(--muted); margin: 8px 0 3p
 dialog { border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); color: var(--ink); padding: 20px; width: min(440px, 92vw); }
 dialog::backdrop { background: rgba(0,0,0,.4); }
 .cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-@media (max-width: 560px) { .cols2 { grid-template-columns: 1fr; } .bal { grid-template-columns: 78px 1fr 54px; } }
+/* Buttons that sit at the right of a row on wide screens drop onto their own line on phones. */
+.acts { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+@media (max-width: 560px) {
+  .cols2 { grid-template-columns: 1fr; }
+  .bal { grid-template-columns: 78px 1fr 54px; }
+  .top { padding: 12px 14px; gap: 6px; }
+  nav { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; gap: 4px; }
+  nav a { text-align: center; padding: 8px 4px; }
+  main { padding: 16px 12px 80px; }
+  .card { padding: 14px; }
+  .row { flex-wrap: wrap; align-items: flex-start; }
+  .row .dot { margin-top: 8px; }
+  .row .grow { flex: 1 1 0; }
+  .row .acts { flex: 0 0 100%; padding-left: 20px; }
+  .row .acts.side { flex: 0 0 auto; padding-left: 0; }  /* a lone small button stays beside the title */
+  button { min-height: 40px; }
+  h1 { font-size: 1.35rem; }
+}
 
 a { color: var(--accent); }
