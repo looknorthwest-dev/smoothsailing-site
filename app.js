@@ -43,11 +43,16 @@ async function api(method, url, body, retried = false) {
     return j;
   }
   const pass = store.get("ss_pass") ?? (await askPass());
-  let j;
-  try {
-    const r = await fetch(window.SS_API, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ pass, method, path: url, body: body ?? {} }) });
-    j = await r.json();
-  } catch { throw new Error("Couldn't reach the SmoothSailing server. Check your connection and try again."); }
+  let j, lastErr;
+  // Google's servers occasionally hiccup. Reads are safe to repeat, so retry those once; writes are never repeated (no duplicate entries).
+  for (let attempt = 0; attempt < (method === "GET" ? 2 : 1) && !j; attempt++) {
+    try {
+      const r = await fetch(window.SS_API, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ pass, method, path: url, body: body ?? {} }) });
+      const txt = await r.text();
+      try { j = JSON.parse(txt); } catch { throw new Error(`got a web page instead of data (HTTP ${r.status})`); }
+    } catch (e) { lastErr = e; if (method === "GET") await new Promise((res) => setTimeout(res, 1200)); }
+  }
+  if (!j) throw new Error(`Couldn't reach the SmoothSailing server (${lastErr?.message ?? "network error"}). Reload the page; if it keeps happening, try a private window, since a browser extension can block it.`);
   if (j.ok) { store.set("ss_pass", pass); return j.data; }
   if (j.status === 401) {
     store.del("ss_pass");
