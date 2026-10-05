@@ -181,9 +181,11 @@ function quickLog(d) {
   const cat = h("select", {}, d.categories.map((c) => h("option", { value: c.id }, c.name)));
   const mins = h("input", { type: "number", min: 0, placeholder: "min", style: "width:80px" });
   const win = h("input", { type: "checkbox" });
+  const when = h("input", { type: "date", value: d.date, max: d.date, required: true, title: "Day you did it" });
   return h("form", { class: "card", onsubmit: (ev) => { ev.preventDefault(); act(ev.submitter, async () => {
-      await api("POST", "/api/completions", { title: title.value, category: cat.value, minutes: mins.value, accomplishment: win.checked }); toast("Logged"); refresh(); }); } },
-    h("h2", {}, "Log something you did"), h("div", { class: "inline" }, title, cat, mins, h("label", { class: "inline", style: "margin:0" }, win, "★ win"), h("button", { class: "primary" }, "Add")));
+      await api("POST", "/api/completions", { title: title.value, category: cat.value, minutes: mins.value, completed_on: when.value, accomplishment: win.checked });
+      toast(when.value === d.date ? "Logged" : `Logged for ${dayName(when.value)}`); refresh(); }); } },
+    h("h2", {}, "Log something you did"), h("div", { class: "inline" }, title, when, cat, mins, h("label", { class: "inline", style: "margin:0" }, win, "★ win"), h("button", { class: "primary" }, "Add")));
 }
 
 // ------------------------------------------------------------------------------------------------------- Plan & Food
@@ -281,7 +283,32 @@ function entryRow(e) {
   return h("div", { class: `row cat-${e.category}` }, h("span", { class: "dot" }),
     h("div", { class: "grow" }, h("div", { class: "title" }, e.title), h("div", { class: "meta" }, `${CAT[e.category]}${e.subcategory ? " · " + e.subcategory : ""}${e.minutes ? " · " + fmtMin(e.minutes) : ""}${e.notes ? " · " + e.notes : ""}`)),
     h("button", { class: "star" + (e.accomplishment ? " on" : ""), title: "Toggle win", onclick: (ev) => act(ev.currentTarget, async () => { await api("PATCH", `/api/completions/${e.id}`, { accomplishment: !e.accomplishment }); refresh(); }) }, e.accomplishment ? "★" : "☆"),
+    h("button", { class: "ghost", title: "Edit entry", onclick: () => entryDialog(e) }, "Edit"),
     h("button", { class: "ghost danger", title: "Delete entry", onclick: (ev) => { if (confirm("Delete this entry?")) act(ev.currentTarget, async () => { await api("DELETE", `/api/completions/${e.id}`); refresh(); }); } }, "✕"));
+}
+
+function entryDialog(e) {
+  const dlg = $("#dlg");
+  const todayIso = new Date().toLocaleDateString("sv");
+  const f = {
+    title: h("input", { value: e.title, required: true, maxlength: 200, style: "width:100%" }),
+    category: h("select", {}, Object.entries(CAT).map(([id, n]) => h("option", { value: id, selected: e.category === id }, n))),
+    date: h("input", { type: "date", value: e.completed_on, max: todayIso > e.completed_on ? todayIso : e.completed_on, required: true }),
+    mins: h("input", { type: "number", min: 0, value: e.minutes ?? "", style: "width:90px" }),
+    notes: h("textarea", { maxlength: 500 }, e.notes ?? ""),
+    win: h("input", { type: "checkbox", checked: !!e.accomplishment }),
+  };
+  dlg.replaceChildren(h("form", { method: "dialog", onsubmit: (ev) => { ev.preventDefault(); act(ev.submitter, async () => {
+      await api("PUT", `/api/completions/${e.id}`, { title: f.title.value, category: f.category.value, completed_on: f.date.value, minutes: f.mins.value, notes: f.notes.value, accomplishment: f.win.checked });
+      dlg.close(); toast("Saved"); refresh(); }); } },
+    h("h2", {}, "Edit entry"),
+    h("label", {}, "What you did"), f.title,
+    h("div", { class: "cols2" }, h("div", {}, h("label", {}, "Day"), f.date), h("div", {}, h("label", {}, "Category"), f.category)),
+    h("label", {}, "Minutes"), f.mins,
+    h("label", {}, "Notes"), f.notes,
+    h("label", { class: "inline" }, f.win, "★ Win"),
+    h("div", { class: "inline", style: "margin-top:16px" }, h("button", { class: "primary" }, "Save"), h("button", { type: "button", onclick: () => dlg.close() }, "Cancel"))));
+  dlg.showModal();
 }
 
 function grouped(entries, keyFn, labelFn) {
