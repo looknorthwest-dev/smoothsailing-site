@@ -8,6 +8,9 @@
   :root { --bg: #11181e; --card: #19232b; --ink: #e8eef2; --muted: #93a4b0; --line: #29353f;
     --accent: #4fb8c9; --accent-ink: #082a31; --warn: #e48a4f; --good: #5cc48a; --shadow: none; }
 }
+/* Lets the browser draw its own controls (date picker icon, scrollbars) to match light/dark mode. */
+:root { color-scheme: light dark; }
+input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: .85; }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
 .top { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: center; padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--card); position: sticky; top: 0; z-index: 5; }
